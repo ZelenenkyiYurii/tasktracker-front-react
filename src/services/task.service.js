@@ -8,9 +8,17 @@ const createTask = (title,description,taskListId) => {
 const deleteTask=(id)=>{
     return api.delete(API_URL+"/"+id,{})
 }
+const updateTask=(id,title,description,taskListId,position)=>{
+    return api.put(API_URL+"/"+id,{title,description,taskListId,position});
+}
+const changePosition=(taskId,sourceId,destinationId,sourceIndex,destinationIndex)=>{
+    return api.put(API_URL+"/position/"+taskId,{sourceId,destinationId,sourceIndex,destinationIndex})
+}
 
 const TaskService ={
     createTask,
-    deleteTask
+    deleteTask,
+    updateTask,
+    changePosition
 };
 export default TaskService;

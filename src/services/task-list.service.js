@@ -8,9 +8,17 @@ const createTaskList = (title,boardId) => {
 const deleteTaskList=(id)=>{
     return api.delete(API_URL+"/"+id,{})
 }
+const updateTaskList=(id,title,boardId,position)=>{
+    return api.put(API_URL+"/"+id,{title,boardId,position})
+}
+const changePosition=(id,title,boardId,position)=>{
+    return api.put(API_URL+"/position/"+id,{title,boardId,position})
+}
 
 const TaskListService ={
     createTaskList,
-    deleteTaskList
+    deleteTaskList,
+    updateTaskList,
+    changePosition
 };
 export default TaskListService;

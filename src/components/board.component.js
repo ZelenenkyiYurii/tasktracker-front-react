@@ -1,112 +1,100 @@
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import UserService from "../services/user.service";
 import TaskList from "./task-list.component";
+import TaskListService from "../services/task-list.service";
+import useBoardData from "../hooks/useBoardData"; // Хук для роботи з даними дошки
+import useWebSocket from "../hooks/useWebSocket"; // Хук для роботи з WebSocket
+import { DragDropContext, Droppable } from "react-beautiful-dnd";
 import CreateTaskListModal from "./create-taskList-modal.component";
-import connectWebSocket from "../services/web-socket.service"; // Підключення до вебсокету
+import TaskService from "../services/task.service";
+
+//
+  const reorder = (list, startIndex, endIndex) => {
+    const result = Array.from(list);
+    const [removed] = result.splice(startIndex, 1);
+    result.splice(endIndex, 0, removed);
+    return result;
+  };
+  
+  // Переміщує елемент з одного списку в інший
+  const move = (source, destination, sourceIndex, destinationIndex) => {
+    const sourceClone = Array.from(source);
+    const destClone = Array.from(destination);
+    const [removed] = sourceClone.splice(sourceIndex, 1);
+    destClone.splice(destinationIndex, 0, removed);
+  
+    return [sourceClone, destClone];
+  };
+  //
+
 
 const Board = () => {
   const { id } = useParams();
-  const [board, setBoard] = useState(null);
+  const { board, setBoard } = useBoardData(id);
   const [showModal, setShowModal] = useState(false);
-  const [stompClient, setStompClient] = useState(null);
+  const stompClient = useWebSocket(id, setBoard);
+  const inittaskLists = board?.taskLists || [];
+  const [taskLists, setTaskLists] = useState(inittaskLists);
 
-  useEffect(() => {
-    UserService.getBoardById(id).then(
-      (response) => {
-        setBoard(response.data);
-      },
-      (error) => {
-        const _content =
-          (error.response && error.response.data) ||
-          error.message ||
-          error.toString();
-
-        console.error(_content);
-        setBoard(null);
-      }
-    );
-
-    const client = connectWebSocket((message) => {
-      console.log("Received message: ", message);
-      if (message.type === 'TASK_LIST' && message.action === 'CREATE') {
-        setBoard((prevBoard) => ({
-          ...prevBoard,
-          taskLists: [...prevBoard.taskLists, message.object]
-        }));
-      } else if (message.type === 'TASK_LIST' && message.action === 'UPDATE') {
-        setBoard((prevBoard) => ({
-          ...prevBoard,
-          taskLists: prevBoard.taskLists.map(tl =>
-            tl.id === message.object.id ? message.object : tl
-          )
-        }));
-      } else if (message.type === 'TASK_LIST' && message.action === 'DELETE') {
-        setBoard((prevBoard) => ({
-          ...prevBoard,
-          taskLists: prevBoard.taskLists.filter(tl => tl.id !== message.object.id)
-        }));
-      } else if (message.type === 'TASK' && message.action === 'CREATE') {
-        setBoard((prevBoard) => ({
-          ...prevBoard,
-          taskLists: prevBoard.taskLists.map(tl =>
-            tl.id === message.object.taskListId
-              ? { ...tl, tasks: [...(tl.tasks || []), message.object] } // Якщо tasks не визначений, використовувати порожній масив
-              : tl
-          )
-        }));
-      } else if (message.type === 'TASK' && message.action === 'UPDATE') {
-        setBoard((prevBoard) => ({
-          ...prevBoard,
-          taskLists: prevBoard.taskLists.map(tl =>
-            tl.id === message.object.taskListId
-              ? {
-                  ...tl,
-                  tasks: (tl.tasks || []).map(task =>
-                    task.id === message.object.id ? message.object : task
-                  )
-                }
-              : tl
-          )
-        }));
-      } else if (message.type === 'TASK' && message.action === 'DELETE') {
-        console.log("start delete task");
-        console.log("Task ID to delete:", message.object.id);
-    
-        setBoard((prevBoard) => {
-          const updatedBoard = {
-            ...prevBoard,
-            taskLists: prevBoard.taskLists.map(tl => {
-              console.log(`Checking TaskList ID: ${tl.id}`);
-              if (tl.id === message.object.taskListId) {
-                console.log(`Matched TaskList ID: ${tl.id}, TaskList contains ${tl.tasks ? tl.tasks.length : 0} tasks`);
-                const updatedTasks = (tl.tasks || []).filter(task => task.id !== message.object.id);
-                console.log(`Updated TaskList ID: ${tl.id}, TaskList now contains ${updatedTasks.length} tasks`);
-                return {
-                  ...tl,
-                  tasks: updatedTasks
-                };
-              }
-              return tl;
-            })
-          };
-          console.log("Updated Board:", updatedBoard); // Перевірка оновленого стану
-          return updatedBoard;
-        });
-    
-        console.log("end delete task");
+  const onDragEnd = (result) => {
+    console.log("board:");
+    console.log(board);
+    setTaskLists(board?.taskLists || []);
+    console.log("lists:");
+    console.log(board.taskLists);
+    console.log("first list");
+    console.log(board.taskLists[0]);
+    const { source, destination, type } = result;
+    console.log(source, destination, type);
+    // Якщо немає місця призначення, перетягування скасовано
+    if (!destination) {
+      return;
     }
-    
-    });
 
-    setStompClient(client);
+    // Перетягування списку завдань
+    if (type === "TASKLIST") {
+      const sourceTaskList = board.taskLists.find(taskList => taskList.position === source.index);
 
-    return () => {
-      if (stompClient) {
-        stompClient.disconnect();
+      console.log(sourceTaskList);
+      if (sourceTaskList && sourceTaskList.id) {
+        console.log("changePos")
+        console.log(sourceTaskList.id,"title",id, destination.index);
+        if(source.index!=destination.index)
+        {TaskListService.changePosition(sourceTaskList.id,"title",id, destination.index)
+          .then((response) => {
+            console.log('TaskList position changed successfully', response);
+            // Логіка оновлення стану може бути додана тут
+          })
+          .catch((error) => {
+            console.error('Error changing taskList position', error);
+          });}
+      } else {
+        console.error('Invalid taskList data', sourceTaskList);
       }
-    };
-  }, [id]);
+    }else if(type==="TASK") {
+      if((source.droppableId===destination.droppableId && source.index!=destination.index)||(source.droppableId!=destination.droppableId)){
+            //console.log(source.droppableId);
+            const sourceTaskList = board.taskLists.find(taskList => taskList.id === Number(source.droppableId));
+            
+            //console.log("source TaskLists");
+            
+            const sourceTask=sourceTaskList.tasks.find(task=>Number(task.position)===Number(source.index));
+          
+            TaskService.changePosition(sourceTask.id,(source.droppableId),(destination.droppableId),source.index,destination.index)
+            .then((response)=>{
+              console.log("Task position changed successfully", response);
+            })
+            .catch((error)=>{
+              console.error("Error changing task position",error);
+            });
+      }
+      
+    }
+  };
+  
+
+
+
 
   const handleOpenModal = () => {
     setShowModal(true);
@@ -124,29 +112,79 @@ const Board = () => {
     ? [...board.taskLists].sort((a, b) => a.position - b.position)
     : [];
 
-  return (
-    <div className="flex flex-row flex-wrap bg-green-900 h-full">
-      {sortedTaskLists.length > 0 ? (
-        sortedTaskLists.map((taskList) => (
-          <TaskList key={taskList.id} taskList={taskList} />
-        ))
-      ) : (
-        <p className="text-white">No task lists available.</p>
-      )}
+  // return (
+  //   <DragDropContext onDragEnd={onDragEnd} >
+  //     <div className="flex flex-row flex-wrap bg-green-900 h-full">
+
+  //     <Droppable droppableId="all-tasklists" type="TASKLIST" direction="horizontal">
+  //       {(provided) => (
+  //         <div
+  //           ref={provided.innerRef}
+  //           {...provided.droppableProps}
+  //           className="board"
+  //         >
+  //       {sortedTaskLists.length > 0 ? (
+  //         sortedTaskLists.map((taskList) => (
+  //           <TaskList key={taskList.id} taskList={taskList} />
+  //         ))
+  //       ) : (
+  //         <p className="text-white">No task lists available.</p>
+  //       )}
+
+  //       </div>)}
+        
+  //       </Droppable>
+  //       <div>
+  //         <button
+  //           onClick={handleOpenModal}
+  //           className="bg-green-600 text-white p-2 rounded hover:bg-green-700"
+  //         >
+  //           Create Task List
+  //         </button>
+  //       </div>
+  //       <CreateTaskListModal
+  //         showModal={showModal}
+  //         handleClose={handleCloseModal}
+  //         boardId={id}
+  //       />
+  //     </div>
+  //   </DragDropContext>
+  // );
+
+  return(
+    <DragDropContext onDragEnd={onDragEnd}>
+      <Droppable droppableId="all-tasklists" type="TASKLIST" direction="vertical">
+        {(provided) => (
+          <div
+            ref={provided.innerRef}
+            {...provided.droppableProps}
+            className="board"
+          >
+            {sortedTaskLists.length > 0 ? (sortedTaskLists.map((taskList,index) => (
+              <TaskList key={taskList.id} taskList={taskList} index={index} />))) : 
+              (
+                <p className="text-white">No task lists available.</p>
+              )}
+            {provided.placeholder}
+          </div>
+
+        )}
+      </Droppable>
       <div>
-        <button
-          onClick={handleOpenModal}
-          className="bg-green-600 text-white p-2 rounded hover:bg-green-700"
-        >
-          Create Task List
-        </button>
-      </div>
-      <CreateTaskListModal
-        showModal={showModal}
-        handleClose={handleCloseModal}
-        boardId={id}
-      />
-    </div>
+          <button
+            onClick={handleOpenModal}
+            className="bg-green-600 text-white p-2 rounded hover:bg-green-700"
+          >
+            Create Task List
+          </button>
+        </div>
+        <CreateTaskListModal
+          showModal={showModal}
+          handleClose={handleCloseModal}
+          boardId={id}
+        />
+      
+    </DragDropContext>
   );
 };
 

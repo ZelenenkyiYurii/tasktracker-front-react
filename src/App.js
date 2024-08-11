@@ -43,7 +43,7 @@ const App = () => {
         showAdminBoard={showAdminBoard}
         logOut={logOut}
       />
-      <div className="flex-1  container bg-green-800 m-auto">
+      <div className="flex-auto   bg-green-800 p-2">
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/home" element={<Home />} />

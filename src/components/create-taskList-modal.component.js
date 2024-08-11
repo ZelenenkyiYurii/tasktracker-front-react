@@ -9,6 +9,7 @@ const CreateTaskListModal = ({ showModal, handleClose, boardId }) => {
             .then(response => {
                 console.log('Task List created:', response.data);
                 handleClose();
+                setTitle("");
             })
             .catch(error => {
                 console.error('There was an error creating the task list!', error);

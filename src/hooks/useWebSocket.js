@@ -18,25 +18,14 @@ const useWebSocket = (boardId, setBoard) => {
           taskLists: [...prevBoard.taskLists, message.object],
         }));
       } else if (message.type === "TASK_LIST" && message.action === "UPDATE") {
-        // setBoard((prevBoard) => ({
-        //   ...prevBoard,
-        //   taskLists: prevBoard.taskLists.map((tl) =>
-        //     tl.id === message.object.id ? message.object : tl
-        //   ),
-        // }));
-        UserService.getBoardById(boardId).then(
-          (response) => {
-            setBoard(response.data);
-          },
-          (error) => {
-            const _content =
-              (error.response && error.response.data) ||
-              error.message ||
-              error.toString();
-    
-            console.error(_content);
-            setBoard(null);
-          }) 
+        
+        setBoard((prevBoard) => ({
+          ...prevBoard,
+          taskLists: prevBoard.taskLists.map(taskList => (
+            taskList.id === message.object.id ? { ...taskList, title: message.object.title } : taskList
+          ))
+        }));
+        
       } else if (message.type === "TASK_LIST" && message.action === "UPDATE_POSITION") {
         
         console.log(message.object);
@@ -70,6 +59,8 @@ const useWebSocket = (boardId, setBoard) => {
           ),
         }));
       } else if (message.type === "TASK" && message.action === "UPDATE") {
+        console.log("update obj");
+        console.log(message.object);
         setBoard((prevBoard) => ({
           ...prevBoard,
           taskLists: prevBoard.taskLists.map((tl) =>
@@ -84,87 +75,7 @@ const useWebSocket = (boardId, setBoard) => {
           ),
         }));
       }else if (message.type === "TASK" && message.action === "UPDATE_POSITION") {
-        console.log("message");
-        console.log(message.object);
-        // UserService.getBoardById(boardId).then(
-        //   (response) => {
-        //     setBoard(response.data);
-        //   },
-        //   (error) => {
-        //     const _content =
-        //       (error.response && error.response.data) ||
-        //       error.message ||
-        //       error.toString();
-    
-        //     console.error(_content);
-        //     setBoard(null);
-        //   }) 
-
-
-        // setBoard((prevBoard) => {
-        //   const {
-        //     mapSourceIdPosition,
-        //     mapDestinationIdPosition,
-        //     sourceTaskListId,
-        //     destinationTaskListId
-        //   } = message.object; // data - це об'єкт, який ви отримали з бекенду
-        //   console.log("mapSourceIdpos");
-        //   console.log(mapSourceIdPosition);
-        //   console.log("mapDestinationIdPosition");
-        //   console.log(mapDestinationIdPosition);
-        //   console.log("sourceTaskListId");
-        //   console.log(sourceTaskListId);
-        //   console.log("message");
-        //   console.log(destinationTaskListId);
-        //   // Копіюємо taskLists для маніпуляцій
-        //   const updatedTaskLists = prevBoard.taskLists.map((taskList) => {
-        //     if (taskList.id === sourceTaskListId) {
-        //       // Видаляємо завдання із sourceTaskList
-        //       const updatedTasks = taskList.tasks.filter(
-        //         (task) => mapSourceIdPosition.hasOwnProperty(task.id)
-        //       );
-        //       console.log("updatedTasksS");
-        //       console.log(updatedTasks);
-        //       return { ...taskList, tasks: updatedTasks };
-        //     }
-            
         
-        //     // if (taskList.id === destinationTaskListId) {
-        //     //   // Додаємо завдання до destinationTaskList з оновленою позицією
-        //     //   const updatedTasks = taskList.tasks.map((task) => {
-        //     //     if (mapDestinationIdPosition[task.id] !== undefined) {
-        //     //       return { ...task, position: mapDestinationIdPosition[task.id] };
-        //     //     }
-                
-        //     //     return task;
-        //     //   });
-
-        //     //   console.log("updatedTasksD");
-        //     //     console.log(updatedTasks);
-        
-        //     //   // Додаємо нові завдання з sourceTaskList
-        //     //   Object.keys(mapSourceIdPosition).forEach((taskId) => {
-        //     //     const movedTask = prevBoard.taskLists
-        //     //       .find((tl) => tl.id === sourceTaskListId)
-        //     //       .tasks.find((task) => task.id === parseInt(taskId));
-                
-        //     //     if (movedTask) {
-        //     //       updatedTasks.push({ ...movedTask, position: mapSourceIdPosition[taskId] });
-        //     //     }
-        //     //   });
-        
-        //     //   return { ...taskList, tasks: updatedTasks };
-        //     // }
-        
-        //     return taskList;
-        //   });
-        
-        //   // Повертаємо новий об'єкт дошки з оновленими taskLists
-        //   return { ...prevBoard, taskLists: updatedTaskLists };
-        // });
-
-
-
         setBoard((prevBoard) => {
           const {
             mapSourceIdPosition,
@@ -199,14 +110,13 @@ const useWebSocket = (boardId, setBoard) => {
 
             const updatedTaskLists = prevBoard.taskLists.map((taskList) => {
               if (taskList.id === sourceTaskListId) {
-                console.log("eqauls");
+                
                 // Знаходимо завдання, яке буде переміщено
                 movedTask = taskList.tasks.find((task) =>
                   !mapSourceIdPosition.hasOwnProperty(task.id)
                 );
                 
-                console.log("task move:");
-                console.log(movedTask);
+                
                 // Видаляємо завдання з початкового списку
                 const updatedTasks = taskList.tasks
                   .filter((task) => mapSourceIdPosition.hasOwnProperty(task.id))
@@ -216,8 +126,7 @@ const useWebSocket = (boardId, setBoard) => {
                       ? mapSourceIdPosition[task.id] 
                       : task.position
                   }));
-                  console.log("taskList");
-                  console.log(updatedTasks);
+                  
                 return { ...taskList, tasks: updatedTasks };
                   
               }

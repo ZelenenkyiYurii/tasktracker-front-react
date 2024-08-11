@@ -10,10 +10,13 @@ const CreateTaskModal = ({ showModal, handleClose, taskListId }) => {
             .then(response => {
                 console.log('Task created:', response.data);
                 handleClose();
+                setTitle("");
+                setDescription("");
             })
             .catch(error => {
                 console.error('There was an error creating the task!', error);
             });
+        
     };
 
     if (!showModal) {

@@ -6,46 +6,35 @@ import useBoardData from "../hooks/useBoardData"; // Хук для роботи 
 import useWebSocket from "../hooks/useWebSocket"; // Хук для роботи з WebSocket
 import { DragDropContext, Droppable } from "react-beautiful-dnd";
 import CreateTaskListModal from "./create-taskList-modal.component";
+import CreateTaskModal from "./create-task-modal.component";
+import TaskViewModal from "./task-view-modal.component";
 import TaskService from "../services/task.service";
 
-//
-  const reorder = (list, startIndex, endIndex) => {
-    const result = Array.from(list);
-    const [removed] = result.splice(startIndex, 1);
-    result.splice(endIndex, 0, removed);
-    return result;
-  };
-  
-  // Переміщує елемент з одного списку в інший
-  const move = (source, destination, sourceIndex, destinationIndex) => {
-    const sourceClone = Array.from(source);
-    const destClone = Array.from(destination);
-    const [removed] = sourceClone.splice(sourceIndex, 1);
-    destClone.splice(destinationIndex, 0, removed);
-  
-    return [sourceClone, destClone];
-  };
-  //
 
 
 const Board = () => {
+
   const { id } = useParams();
   const { board, setBoard } = useBoardData(id);
-  const [showModal, setShowModal] = useState(false);
   const stompClient = useWebSocket(id, setBoard);
   const inittaskLists = board?.taskLists || [];
   const [taskLists, setTaskLists] = useState(inittaskLists);
 
+  //modals
+  const [showModal, setShowModal] = useState(false);
+  const [showModalTaskCreate,setModalTaskCreate]=useState(false);
+  const [showTaskViewModal,setTaskViewModal]=useState(false);
+  //for modals
+  const [taskListIdCreate,setTaskListIdCreate]=useState(null);
+  const [taskView,setTaskView]=useState(null);
+
+
   const onDragEnd = (result) => {
-    console.log("board:");
-    console.log(board);
+    
     setTaskLists(board?.taskLists || []);
-    console.log("lists:");
-    console.log(board.taskLists);
-    console.log("first list");
-    console.log(board.taskLists[0]);
+    
     const { source, destination, type } = result;
-    console.log(source, destination, type);
+    
     // Якщо немає місця призначення, перетягування скасовано
     if (!destination) {
       return;
@@ -93,9 +82,6 @@ const Board = () => {
   };
   
 
-
-
-
   const handleOpenModal = () => {
     setShowModal(true);
   };
@@ -103,6 +89,34 @@ const Board = () => {
   const handleCloseModal = () => {
     setShowModal(false);
   };
+
+  const handleOpenModalTaskCreate = () => {
+    setModalTaskCreate(true);
+  };
+
+  const handleCloseModalTaskCreate = () => {
+    setModalTaskCreate(false);
+  };
+  const handleOpenModalTaskView = () => {
+    setTaskViewModal(true);
+  };
+
+  const handleCloseModalTaskView = () => {
+    setTaskViewModal(false);
+  };
+  const handleSetTaskListId=(id)=>{
+    setTaskListIdCreate(id);
+  }
+  
+
+  const handleSaveTask=(id,title,description,position)=>{
+      TaskService.updateTask(id,title,description,position)
+      .then((response)=>{
+        console.log("task update:"+response);
+      }).catch((error=>{
+        console.error("error update task:"+error );
+      }))
+  }
 
   if (!board) {
     return <div className="text-white">Board not found</div>;
@@ -112,77 +126,61 @@ const Board = () => {
     ? [...board.taskLists].sort((a, b) => a.position - b.position)
     : [];
 
-  // return (
-  //   <DragDropContext onDragEnd={onDragEnd} >
-  //     <div className="flex flex-row flex-wrap bg-green-900 h-full">
-
-  //     <Droppable droppableId="all-tasklists" type="TASKLIST" direction="horizontal">
-  //       {(provided) => (
-  //         <div
-  //           ref={provided.innerRef}
-  //           {...provided.droppableProps}
-  //           className="board"
-  //         >
-  //       {sortedTaskLists.length > 0 ? (
-  //         sortedTaskLists.map((taskList) => (
-  //           <TaskList key={taskList.id} taskList={taskList} />
-  //         ))
-  //       ) : (
-  //         <p className="text-white">No task lists available.</p>
-  //       )}
-
-  //       </div>)}
-        
-  //       </Droppable>
-  //       <div>
-  //         <button
-  //           onClick={handleOpenModal}
-  //           className="bg-green-600 text-white p-2 rounded hover:bg-green-700"
-  //         >
-  //           Create Task List
-  //         </button>
-  //       </div>
-  //       <CreateTaskListModal
-  //         showModal={showModal}
-  //         handleClose={handleCloseModal}
-  //         boardId={id}
-  //       />
-  //     </div>
-  //   </DragDropContext>
-  // );
 
   return(
     <DragDropContext onDragEnd={onDragEnd}>
-      <Droppable droppableId="all-tasklists" type="TASKLIST" direction="vertical">
+      <Droppable droppableId="all-tasklists" type="TASKLIST" direction="horizontal" className="">
         {(provided) => (
           <div
             ref={provided.innerRef}
             {...provided.droppableProps}
-            className="board"
+            className="board flex overflow-x-auto"
           >
             {sortedTaskLists.length > 0 ? (sortedTaskLists.map((taskList,index) => (
-              <TaskList key={taskList.id} taskList={taskList} index={index} />))) : 
+              <TaskList key={taskList.id} taskList={taskList} index={index} 
+              setTaskListId={handleSetTaskListId} 
+              handleCloseModalTaskCreate={handleCloseModalTaskCreate} 
+              handleOpenModalTaskCreate={handleOpenModalTaskCreate}
+              handleOpenModalTaskView={handleOpenModalTaskView}
+              handleSetTaskView={setTaskView}
+              
+              />))) : 
               (
-                <p className="text-white">No task lists available.</p>
-              )}
+                <div></div>
+              )
+            }
+            
             {provided.placeholder}
+            {<div>
+                <button
+                  onClick={handleOpenModal}
+                  className="bg-green-600 text-white  m-2 p-3 rounded hover:bg-green-700"
+                >
+                  Add list
+                </button>
+              </div>}
           </div>
 
         )}
       </Droppable>
-      <div>
-          <button
-            onClick={handleOpenModal}
-            className="bg-green-600 text-white p-2 rounded hover:bg-green-700"
-          >
-            Create Task List
-          </button>
-        </div>
-        <CreateTaskListModal
-          showModal={showModal}
-          handleClose={handleCloseModal}
-          boardId={id}
-        />
+      
+      <CreateTaskListModal
+        showModal={showModal}
+        handleClose={handleCloseModal}
+        boardId={id}
+      />
+      <CreateTaskModal
+        showModal={showModalTaskCreate}
+        handleClose={handleCloseModalTaskCreate}
+        taskListId={taskListIdCreate}
+      />
+      <TaskViewModal
+        showModal={showTaskViewModal}
+        handleClose={handleCloseModalTaskView}
+        handleSave={handleSaveTask}
+        task={taskView}   
+      />
+
       
     </DragDropContext>
   );

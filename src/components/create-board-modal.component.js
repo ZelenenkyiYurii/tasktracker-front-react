@@ -9,6 +9,7 @@ const CreateBoardModal = ({ showModal, handleClose }) => {
             .then(response => {
                 console.log('Board created:', response.data);
                 handleClose();
+                setTitle('');
             })
             .catch(error => {
                 console.error('There was an error creating the board!', error);
@@ -20,6 +21,7 @@ const CreateBoardModal = ({ showModal, handleClose }) => {
     }
 
     return (
+
         <div className="fixed inset-0 flex items-center justify-center bg-gray-800 bg-opacity-50">
             <div className="rounded-lg p-8 shadow-lg bg-green-500 relative">
                 <button
